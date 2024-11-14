@@ -30,7 +30,6 @@ else
 /// Initiate the Web Server task
 void RunServer()
 {
-    // At the moment we do not have a server
     TcpListener listener;
     Socket connection;
     NetworkStream socketStream;
@@ -68,10 +67,12 @@ void doRequest(NetworkStream socketStream)
     try
     {
         String line = sr.ReadLine();
+        
 
         int content_length = 0;
         while (line != "")
         {
+            Console.WriteLine(line);
             if (line.StartsWith("Content-Length: "))
             {
                 content_length = Int32.Parse(line.Substring(16));
@@ -82,8 +83,8 @@ void doRequest(NetworkStream socketStream)
 
         Console.WriteLine($"Received Network Command: '{line}'");
 
-        //sw.WriteLine(line);   // Need to remove this line after testing
-        //sw.Flush();           // Need to remove this line after testing   
+        sw.WriteLine(line);   // Need to remove this line after testing
+        sw.Flush();           // Need to remove this line after testing   
         
         if (line == null)
         {
@@ -102,6 +103,7 @@ void doRequest(NetworkStream socketStream)
 
             if (debug) Console.WriteLine($"Received an update request for '{ID}' to '{value}'");
             if (!DataBase.ContainsKey(ID)) DataBase.TryAdd(ID, new User { });
+            else Console.WriteLine($"Received an update request for '{ID}' to '{value}' returning '404 Not Found'");
             DataBase[ID].Location = value;
         }
         else if (line.StartsWith("GET /?name=") && line.EndsWith(" HTTP/1.1"))
