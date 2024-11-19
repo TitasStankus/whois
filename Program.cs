@@ -35,14 +35,12 @@ void RunServer()
     NetworkStream socketStream;
     try
     {
-        listener = new TcpListener(IPAddress.Any,443);
+        listener = new TcpListener(443);
         listener.Start();
         while (true)
         {
             if (debug) Console.WriteLine("Server Waiting connection...");
             connection = listener.AcceptSocket();
-            connection.SendTimeout = 1000;
-            connection.ReceiveTimeout = 1000;
             socketStream = new NetworkStream(connection);
             doRequest(socketStream);
             socketStream.Close();
@@ -51,7 +49,6 @@ void RunServer()
     }
     catch (Exception e)
     {
-        //log.log(e.ToString());
         Console.WriteLine(e.ToString());
     }
     if (debug)
@@ -67,44 +64,48 @@ void doRequest(NetworkStream socketStream)
     try
     {
         String line = sr.ReadLine();
-        
 
-        int content_length = 0;
-        while (line != "")
-        {
-            Console.WriteLine(line);
-            if (line.StartsWith("Content-Length: "))
-            {
-                content_length = Int32.Parse(line.Substring(16));
-            }
-            line = sr.ReadLine();
-            if (debug) Console.WriteLine($"Skipped Header Line: '{line}'");
-        }
-
-        Console.WriteLine($"Received Network Command: '{line}'");
-
-        sw.WriteLine(line);   // Need to remove this line after testing
-        sw.Flush();           // Need to remove this line after testing   
-        
         if (line == null)
         {
             if (debug) Console.WriteLine("Ignoring null command");
             return;
         }
+
+        Console.WriteLine($"Received Network Command: '{line}'");
+
+        //sw.WriteLine(line);   // Inhibit when working
+        //sw.Flush();           // Inhibit when working  
+
         if (line == "POST / HTTP/1.1")
         {
             // The we have an update
             if (debug) Console.WriteLine("Received an update request");
-            DataBase["cssbct"].Location = "network update test string";
-            
+
+            //DataBase["cssbct"].Location = "network update test string"; // Testing
+
+            int content_length = 0;
+            while (line != "")
+            {
+                if (line.StartsWith("Content-Length: "))
+                {
+                    content_length = Int32.Parse(line.Substring(16));
+                }
+                line = sr.ReadLine();
+                if (debug) Console.WriteLine($"Skipped Header Line: '{line}'");
+            }
+
+            while (line != "") line = sr.ReadLine(); // Skip to blank line
+
+            line = "";
+            for (int i = 0; i < content_length; i++) line += (char)sr.Read();
+
             String[] slices = line.Split(new char[] { '&' }, 2);
             String ID = slices[0].Substring(5);
             String value = slices[1].Substring(9);
-
             if (debug) Console.WriteLine($"Received an update request for '{ID}' to '{value}'");
-            if (!DataBase.ContainsKey(ID)) DataBase.TryAdd(ID, new User { });
-            else Console.WriteLine($"Received an update request for '{ID}' to '{value}' returning '404 Not Found'");
             DataBase[ID].Location = value;
+            //Console.WriteLine($"New database location: {DataBase[ID].Location}"); // Testing
+
         }
         else if (line.StartsWith("GET /?name=") && line.EndsWith(" HTTP/1.1"))
         {
@@ -142,19 +143,17 @@ void doRequest(NetworkStream socketStream)
             sw.WriteLine("HTTP/1.1 400 Bad Request");
             sw.WriteLine("Content-Type: text/plain");
             sw.WriteLine();
-            sw.Flush();
         }
     }
     catch (Exception e)
     {
-        Console.WriteLine($"Fault in command processing: {e.ToString()}");
+        Console.WriteLine($"Fault in Network Processing: {e.ToString()}");
     }
     finally
     {
         sw.Close();
         sr.Close();
     }
-
 }
 
 /// Process the next database command request
