@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using whois;
 
-Boolean debug = true;
+Boolean debug = false;
 
 Dictionary<String, User> DataBase = new Dictionary<String, User>
 {
@@ -100,10 +100,27 @@ void doRequest(NetworkStream socketStream)
             for (int i = 0; i < content_length; i++) line += (char)sr.Read();
 
             String[] slices = line.Split(new char[] { '&' }, 2);
+            if (slices.Length < 2 || !slices[0].StartsWith("name=") || !slices[1].StartsWith("location="))
+            {
+                // This is an invalid request
+                sw.WriteLine("HTTP/1.1 400 Bad Request");
+                sw.WriteLine("Content-Type: text/plain");
+                sw.WriteLine();
+                sw.Flush();
+                Console.WriteLine($"Unrecognised command: '{line}'");
+                return;
+            }
             String ID = slices[0].Substring(5);
             String value = slices[1].Substring(9);
             if (debug) Console.WriteLine($"Received an update request for '{ID}' to '{value}'");
+            if (!DataBase.ContainsKey(ID)) DataBase.TryAdd(ID, new User { });
             DataBase[ID].Location = value;
+
+            sw.WriteLine("HTTP/1.1 200 OK");
+            sw.WriteLine("Content-Type: text/plain");
+            sw.WriteLine();
+            sw.Flush();
+            Console.WriteLine($"Performed Update on '{ID}' location to '{value}'");
             //Console.WriteLine($"New database location: {DataBase[ID].Location}"); // Testing
 
         }
@@ -225,6 +242,7 @@ void ProcessCommand(string command)
             String result = null;
             switch (field)
             {
+                default: Console.WriteLine($"Unknown field name: '{field}'"); return;
                 case "location": result = DataBase[ID].Location; break;
                 case "UserID": result = DataBase[ID].UserID; break;
                 case "Surname": result = DataBase[ID].Surname; break;
@@ -250,6 +268,7 @@ void ProcessCommand(string command)
             }
             switch (field)
             {
+                default: Console.WriteLine($"Unknown field name: '{field}'"); return;
                 case "location": DataBase[ID].Location = update; break;
                 case "UserID": DataBase[ID].UserID = update; break;
                 case "Surname": DataBase[ID].Surname = update; break;
